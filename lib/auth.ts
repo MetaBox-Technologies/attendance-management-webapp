@@ -30,21 +30,26 @@ export async function signIn(email: string, password: string) {
 // ------------------ SIGNUP ------------------
 export async function signUp(email: string, password: string, accessCode: string) {
   try {
-    // 1. Get access code from DB - use .single() instead of .limit(1)
-    const { data: access, error: accessError } = await supabase
-      .from("accesscode")
-      .select("code")
-      .single();
+    // firsly i was getting access code from db, but now i will hardcode it for simplicity
+    // // 1. Get access code from DB - use .single() instead of .limit(1)
+    // const { data: access, error: accessError } = await supabase
+    //   .from("accesscode")
+    //   .select("code")
+    //   .single();
 
-    if (accessError || !access) {
-      console.error("Access code error:", accessError);
-      return { success: false, message: "Access code not configured" };
-    }
+    // if (accessError || !access) {
+    //   console.error("Access code error:", accessError);
+    //   return { success: false, message: "Access code not configured" };
+    // }
 
-    const requiredCode = access.code;
+    // const requiredCode = access.code;
 
-    // 2. Compare provided code
-    if (accessCode.trim() !== requiredCode.trim()) {
+    // // 2. Compare provided code
+    // if (accessCode.trim() !== requiredCode.trim()) {
+    //   return { success: false, message: "Invalid access code" };
+    // }
+// 2. Compare provided code
+    if (accessCode.trim() !== "METABLACK2025") {
       return { success: false, message: "Invalid access code" };
     }
 

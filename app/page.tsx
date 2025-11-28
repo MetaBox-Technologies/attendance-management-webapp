@@ -11,9 +11,6 @@ import './styles.css';
 interface People {
   user_id: number;
   emp_code: string;
-  Name: string;
-  Email: string;
-  Phone: string;
 }
 
 export default function Home() {
@@ -26,9 +23,6 @@ export default function Home() {
   const [form, setForm] = useState<People>({
     user_id: 0,
     emp_code: "",
-    Name: "",
-    Email: "",
-    Phone: "",
   });
   const [editUserId, setEditUserId] = useState<number | null>(null);
 
@@ -57,10 +51,7 @@ export default function Home() {
       people.filter((person) => {
         return (
           person.user_id.toString().includes(query) ||
-          (person.emp_code?.toLowerCase() || "").includes(query) ||
-          (person.Name?.toLowerCase() || "").includes(query) ||
-          (person.Email?.toLowerCase() || "").includes(query) ||
-          (person.Phone?.toLowerCase() || "").includes(query)
+          (person.emp_code?.toLowerCase() || "").includes(query) 
         );
       })
     );
@@ -106,9 +97,6 @@ export default function Home() {
         .update({
           user_id: form.user_id,
           emp_code: form.emp_code,
-          Name: form.Name,
-          Email: form.Email,
-          Phone: form.Phone,
         })
         .eq("user_id", editUserId);
 
@@ -123,9 +111,6 @@ export default function Home() {
         .insert({
           user_id: form.user_id,
           emp_code: form.emp_code,
-          Name: form.Name,
-          Email: form.Email,
-          Phone: form.Phone,
         });
 
       if (error) toast.error(`Insert failed: ${error.message}`);
@@ -137,7 +122,7 @@ export default function Home() {
   }
 
   function resetForm() {
-    setForm({ user_id: 0, emp_code: "", Name: "", Email: "", Phone: "" });
+    setForm({ user_id: 0, emp_code: "" });
   }
 
   // ---------------- Edit ----------------
@@ -255,36 +240,6 @@ export default function Home() {
                       }
                     />
                   </div>
-                  <div className="form-group">
-                    <label>Name</label>
-                    <input
-                      type="text"
-                      value={form.Name || ""}
-                      onChange={(e) =>
-                        setForm({ ...form, Name: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Email</label>
-                    <input
-                      type="email"
-                      value={form.Email || ""}
-                      onChange={(e) =>
-                        setForm({ ...form, Email: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Phone</label>
-                    <input
-                      type="text"
-                      value={form.Phone || ""}
-                      onChange={(e) =>
-                        setForm({ ...form, Phone: e.target.value })
-                      }
-                    />
-                  </div>
                   <button className="btn-primary" onClick={handleFormSubmit}>
                     {editUserId !== null ? "Update" : "Add"}
                   </button>
@@ -330,9 +285,6 @@ export default function Home() {
                         </th>
                         <th>user_id</th>
                         <th>emp_code</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
                         <th>Action</th>
                       </tr>
                     </thead>
@@ -355,9 +307,6 @@ export default function Home() {
                           </td>
                           <td>{singleperson.user_id}</td>
                           <td>{singleperson.emp_code}</td>
-                          <td>{singleperson.Name}</td>
-                          <td>{singleperson.Email}</td>
-                          <td>{singleperson.Phone}</td>
                           <td>
                             <button
                               className="btn-edit"
