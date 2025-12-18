@@ -52,7 +52,7 @@ export default function Home() {
   // ---------------- Fetch People ----------------
   async function fetchPeople() {
     const { data, error } = await supabase
-      .from("metapeople")
+      .from("user_mapping")
       .select("*")
       .order("user_id", { ascending: true });
 
@@ -96,7 +96,7 @@ export default function Home() {
     if (editUserId !== null) {
       // ---------------- Update ----------------
       const { error } = await supabase
-        .from("metapeople")
+        .from("user_mapping")
         .update({
           user_id: form.user_id,
           emp_code: form.emp_code,
@@ -109,7 +109,7 @@ export default function Home() {
       setEditUserId(null);
     } else {
       // ---------------- Insert ----------------
-      const { error } = await supabase.from("metapeople").insert({
+      const { error } = await supabase.from("user_mapping").insert({
         user_id: form.user_id,
         emp_code: form.emp_code,
       });
@@ -145,7 +145,7 @@ export default function Home() {
 
     if (confirm.isConfirmed) {
       const { error } = await supabase
-        .from("metapeople")
+        .from("user_mapping")
         .delete()
         .eq("user_id", user_id);
 
@@ -173,7 +173,7 @@ export default function Home() {
 
     if (confirm.isConfirmed) {
       const { error } = await supabase
-        .from("metapeople")
+        .from("user_mapping")
         .delete()
         .in("user_id", selectedIds);
 
@@ -257,7 +257,7 @@ export default function Home() {
       }
 
       // Insert records
-      const { error } = await supabase.from("metapeople").insert(validRecords);
+      const { error } = await supabase.from("user_mapping").insert(validRecords);
 
       if (error) {
         toast.error(`Upload failed: ${error.message}`);
@@ -421,7 +421,7 @@ export default function Home() {
                   <div>
                     <h4>User Mappings</h4>
                     <p style={{ fontSize: "12px", color: "#e8f4f0", marginTop: "4px" }}>
-                      Metabox and Blackbox
+                      Attendex
                     </p>
                   </div>
                 </div>

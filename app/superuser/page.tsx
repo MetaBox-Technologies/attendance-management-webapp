@@ -64,7 +64,7 @@ export default function SyntheticRecordsPage() {
     const to = from + RECORDS_PER_PAGE - 1;
 
     const { data, error, count } = await supabase
-      .from("attendance")
+      .from("attendance_logs")
       .select("*", { count: 'exact' })
       .order("timestamp", { ascending: false })
       .range(from, to);
@@ -215,7 +215,7 @@ export default function SyntheticRecordsPage() {
     };
 
     const { error: updateError } = await supabase
-      .from("attendance")
+      .from("attendance_logs")
       .update(updateData)
       .eq("id", editingRecord.id);
 
@@ -276,7 +276,7 @@ export default function SyntheticRecordsPage() {
 
     if (confirm.isConfirmed) {
       const { error } = await supabase
-        .from("attendance")
+        .from("attendance_logs")
         .delete()
         .in("id", selectedIds);
 
@@ -529,7 +529,11 @@ export default function SyntheticRecordsPage() {
                           </td>
                           <td>{record.id}</td>
                           <td>{record.user_id ?? '-'}</td>
-                          <td>{record.timestamp ? new Date(record.timestamp).toLocaleString() : '-'}</td>
+                          <td>
+                            {record.timestamp 
+                              ? new Date(record.timestamp).toLocaleString('en-US', { timeZone: 'UTC' })
+                              : '-'}
+                          </td>
                           <td>{record.device_ip ?? '-'}</td>
                           <td>{record.check_type ?? '-'}</td>
                           <td>

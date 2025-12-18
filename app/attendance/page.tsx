@@ -65,7 +65,7 @@ useEffect(() => {
     const to = from + RECORDS_PER_PAGE - 1;
 
     const { data, error, count } = await supabase
-      .from("attendance")
+      .from("attendance_logs")
       .select("*", { count: 'exact' })
       .order("timestamp", { ascending: false })
       .range(from, to);
@@ -136,7 +136,7 @@ useEffect(() => {
     }
 
     const { error: updateError } = await supabase
-      .from("attendance")
+      .from("attendance_logs")
       .update({
         timestamp: editTimestamp,
         device_ip: "192.168.68.52",
@@ -209,7 +209,7 @@ useEffect(() => {
 
     if (confirm.isConfirmed) {
       const { error } = await supabase
-        .from("attendance")
+        .from("attendance_logs")
         .delete()
         .in("id", selectedIds);
 
@@ -425,7 +425,11 @@ useEffect(() => {
                           </td>
                           <td>{record.id}</td>
                           <td>{record.user_id}</td>
-                          <td>{new Date(record.timestamp).toLocaleString()}</td>
+                          <td>
+                            {record.timestamp 
+                              ? new Date(record.timestamp).toLocaleString('en-US', { timeZone: 'UTC' })
+                              : '-'}
+                          </td>
                           <td>{record.device_ip}</td>
                           <td>{record.check_type}</td>
                           <td>

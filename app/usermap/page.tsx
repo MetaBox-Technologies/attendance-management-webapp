@@ -48,7 +48,7 @@ export default function Home() {
   // ---------------- Fetch People ----------------
   async function fetchPeople() {
     const { data, error } = await supabase
-      .from("metapeople")
+      .from("user_mapping")
       .select("*")
       .order("user_id", { ascending: true });
 
@@ -90,7 +90,7 @@ export default function Home() {
     }
 
     // ---------------- Insert ----------------
-    const { error } = await supabase.from("metapeople").insert({
+    const { error } = await supabase.from("user_mapping").insert({
       user_id: form.user_id,
       emp_code: form.emp_code,
     });
