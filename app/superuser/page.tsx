@@ -27,7 +27,6 @@ const RECORDS_PER_PAGE = 50;
 export default function SyntheticRecordsPage() {
   const router = useRouter();
   const [records, setRecords] = useState<Record[]>([]);
-  const [filteredRecords, setFilteredRecords] = useState<Record[]>([]);
   const [displayedRecords, setDisplayedRecords] = useState<Record[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -37,6 +36,8 @@ export default function SyntheticRecordsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -77,11 +78,14 @@ export default function SyntheticRecordsPage() {
 
     if (append) {
       setRecords((prev) => [...prev, ...(data || [])]);
+      setDisplayedRecords((prev) => [...prev, ...(data || [])]);
     } else {
       setRecords(data || []);
+      setDisplayedRecords(data || []);
     }
 
     const totalRecords = count || 0;
+    setTotalCount(totalRecords);
     setHasMore(totalRecords > page * RECORDS_PER_PAGE);
     setIsLoading(false);
   }
@@ -97,31 +101,60 @@ export default function SyntheticRecordsPage() {
     fetchRecords(nextPage, true);
   }
 
-  // ---------------- Search Filter ----------------
+  // ---------------- Search Entire Database ----------------
   useEffect(() => {
-    const query = searchQuery.toLowerCase();
-    const filtered = records.filter((record) => {
-      const checkType = typeof record.check_type === 'string' ? record.check_type.toLowerCase() : '';
-      const deviceIp = typeof record.device_ip === 'string' ? record.device_ip.toLowerCase() : '';
+    const performSearch = async () => {
+      if (!searchQuery.trim()) {
+        // If search is empty, reset to paginated records
+        fetchRecords(1, false);
+        setCurrentPage(1);
+        return;
+      }
 
-      return (
-        record.id.toString().includes(query) ||
-        (record.user_id?.toString().includes(query) ?? false) ||
-        deviceIp.includes(query) ||
-        checkType.includes(query)
-      );
-    });
-    setFilteredRecords(filtered);
-  }, [searchQuery, records]);
+      setIsSearching(true);
+      const query = searchQuery.toLowerCase();
 
-  // ---------------- Paginate Filtered Records ----------------
-  useEffect(() => {
-    if (searchQuery) {
-      setDisplayedRecords(filteredRecords);
-    } else {
-      setDisplayedRecords(filteredRecords);
-    }
-  }, [filteredRecords, searchQuery]);
+      // Build search query for database
+      let searchQueryBuilder = supabase
+        .from("attendance_logs")
+        .select("*", { count: 'exact' })
+        .order("timestamp", { ascending: false });
+
+      // Try to parse as number for ID and user_id searches
+      const numQuery = parseInt(query);
+      if (!isNaN(numQuery)) {
+        searchQueryBuilder = searchQueryBuilder.or(
+          `id.eq.${numQuery},user_id.eq.${numQuery},paired_with.eq.${numQuery}`
+        );
+      } else {
+        // Text search on device_ip and check_type
+        searchQueryBuilder = searchQueryBuilder.or(
+          `device_ip.ilike.%${query}%,check_type.ilike.%${query}%`
+        );
+      }
+
+      const { data, error, count } = await searchQueryBuilder;
+
+      if (error) {
+        toast.error(`Search failed: ${error.message}`);
+        setIsSearching(false);
+        return;
+      }
+
+      setDisplayedRecords(data || []);
+      setRecords(data || []);
+      setTotalCount(count || 0);
+      setHasMore(false); // Disable "Load More" during search
+      setIsSearching(false);
+    };
+
+    // Debounce search
+    const timeoutId = setTimeout(() => {
+      performSearch();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   // ---------------- Export to CSV ----------------
   function handleExportToCSV() {
@@ -232,6 +265,9 @@ export default function SyntheticRecordsPage() {
     setRecords((prev) =>
       prev.map((r) => (r.id === editingRecord.id ? updatedRecord : r))
     );
+    setDisplayedRecords((prev) =>
+      prev.map((r) => (r.id === editingRecord.id ? updatedRecord : r))
+    );
 
     toast.success("Record updated successfully");
     handleCancelEdit();
@@ -285,6 +321,7 @@ export default function SyntheticRecordsPage() {
 
       setSelectedIds([]);
       setRecords((prev) => prev.filter((r) => !selectedIds.includes(r.id)));
+      setDisplayedRecords((prev) => prev.filter((r) => !selectedIds.includes(r.id)));
     }
   }
 
@@ -444,7 +481,12 @@ export default function SyntheticRecordsPage() {
                   <div>
                     <h5>Records List</h5>
                     <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.9)", marginTop: "4px" }}>
-                      Showing {displayedRecords.length} of {records.length} loaded records
+                      {searchQuery ? (
+                        <>Showing {displayedRecords.length} search results from entire database</>
+                      ) : (
+                        <>Showing {displayedRecords.length} of {totalCount} total records</>
+                      )}
+                      {isSearching && <span> (Searching...)</span>}
                     </p>
                   </div>
                 </div>
@@ -454,7 +496,7 @@ export default function SyntheticRecordsPage() {
                     <div className="search-container">
                       <input
                         type="text"
-                        placeholder="Search by ID, User ID, Device IP, or Check Type..."
+                        placeholder="Search entire database by ID, User ID, Device IP, or Check Type..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
@@ -529,11 +571,7 @@ export default function SyntheticRecordsPage() {
                           </td>
                           <td>{record.id}</td>
                           <td>{record.user_id ?? '-'}</td>
-                          <td>
-                            {record.timestamp 
-                              ? new Date(record.timestamp).toLocaleString('en-US', { timeZone: 'UTC' })
-                              : '-'}
-                          </td>
+                          <td>{record.timestamp ? new Date(record.timestamp).toLocaleString() : '-'}</td>
                           <td>{record.device_ip ?? '-'}</td>
                           <td>{record.check_type ?? '-'}</td>
                           <td>
@@ -559,8 +597,11 @@ export default function SyntheticRecordsPage() {
                       ))}
                     </tbody>
                   </table>
-                  {displayedRecords.length === 0 && (
+                  {displayedRecords.length === 0 && !isSearching && (
                     <div className="no-records">No records found</div>
+                  )}
+                  {isSearching && (
+                    <div className="no-records">Searching entire database...</div>
                   )}
                 </div>
 

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, FormEvent } from "react";
@@ -28,7 +27,6 @@ const RECORDS_PER_PAGE = 50;
 export default function SyntheticRecordsPage() {
   const router = useRouter();
   const [records, setRecords] = useState<Record[]>([]);
-  const [filteredRecords, setFilteredRecords] = useState<Record[]>([]);
   const [displayedRecords, setDisplayedRecords] = useState<Record[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -38,25 +36,26 @@ export default function SyntheticRecordsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
 
-useEffect(() => {
-  if (!isAuthenticated()) {
-    router.push("/login");
-  } else {
-    setCurrentUser(getCurrentUser());
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push("/login");
+    } else {
+      setCurrentUser(getCurrentUser());
 
-    const hasReloaded = sessionStorage.getItem("has-reloaded");
-    if (!hasReloaded) {
-      sessionStorage.setItem("has-reloaded", "true");
+      const hasReloaded = sessionStorage.getItem("has-reloaded");
+      if (!hasReloaded) {
+        sessionStorage.setItem("has-reloaded", "true");
+      }
     }
-  }
-}, [router]);
+  }, [router]);
 
-useEffect(() => {
-  return () => {
-    sessionStorage.removeItem("has-reloaded");
-  };
-}, []);
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem("has-reloaded");
+    };
+  }, []);
 
   // ---------------- Fetch Records with Pagination ----------------
   async function fetchRecords(page: number = 1, append: boolean = false) {
@@ -83,7 +82,50 @@ useEffect(() => {
     }
 
     const totalRecords = count || 0;
+    setTotalCount(totalRecords);
     setHasMore(totalRecords > page * RECORDS_PER_PAGE);
+    setIsLoading(false);
+  }
+
+  // ---------------- Search Database ----------------
+  async function searchDatabase(query: string) {
+    if (!query.trim()) {
+      // If search is empty, reload normal pagination
+      setCurrentPage(1);
+      fetchRecords(1, false);
+      return;
+    }
+
+    setIsLoading(true);
+    const searchTerm = query.toLowerCase();
+
+    // Build search query - check if it's a number for ID searches
+    const isNumeric = !isNaN(Number(searchTerm));
+    
+    let queryBuilder = supabase
+      .from("attendance_logs")
+      .select("*", { count: 'exact' })
+      .order("timestamp", { ascending: false });
+
+    if (isNumeric) {
+      // Search numeric fields
+      queryBuilder = queryBuilder.or(`id.eq.${searchTerm},user_id.eq.${searchTerm}`);
+    } else {
+      // Search text fields
+      queryBuilder = queryBuilder.or(`device_ip.ilike.%${searchTerm}%,check_type.ilike.%${searchTerm}%`);
+    }
+
+    const { data, error, count } = await queryBuilder;
+
+    if (error) {
+      toast.error(`Search failed: ${error.message}`);
+      setIsLoading(false);
+      return;
+    }
+
+    setRecords(data || []);
+    setTotalCount(count || 0);
+    setHasMore(false); // Disable load more during search
     setIsLoading(false);
   }
 
@@ -91,39 +133,26 @@ useEffect(() => {
     fetchRecords(1, false);
   }, []);
 
+  // ---------------- Handle Search Input ----------------
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      searchDatabase(searchQuery);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
+
+  // ---------------- Display Records ----------------
+  useEffect(() => {
+    setDisplayedRecords(records);
+  }, [records]);
+
   // ---------------- Load More Records ----------------
   function handleLoadMore() {
     const nextPage = currentPage + 1;
     setCurrentPage(nextPage);
     fetchRecords(nextPage, true);
   }
-
-  // ---------------- Search Filter ----------------
-  useEffect(() => {
-    const query = searchQuery.toLowerCase();
-    const filtered = records.filter((record) => {
-      const checkType = typeof record.check_type === 'string' ? record.check_type.toLowerCase() : '';
-      const deviceIp = typeof record.device_ip === 'string' ? record.device_ip.toLowerCase() : '';
-
-      return (
-        record.id.toString().includes(query) ||
-        record.user_id.toString().includes(query) ||
-        deviceIp.includes(query) ||
-        checkType.includes(query)
-      );
-    });
-    setFilteredRecords(filtered);
-  }, [searchQuery, records]);
-
-  // ---------------- Paginate Filtered Records ----------------
-  useEffect(() => {
-    if (searchQuery) {
-      setDisplayedRecords(filteredRecords);
-    } else {
-      setDisplayedRecords(filteredRecords);
-    }
-  }, [filteredRecords, searchQuery]);
-
 
   // ---------------- Form Submit (Update Timestamp and Device IP) ----------------
   async function handleFormSubmit(e: FormEvent) {
@@ -142,7 +171,6 @@ useEffect(() => {
         device_ip: "192.168.68.52",
         synthetic: false,
         paired_with: null
-      
       })
       .eq("id", editingRecord.id);
 
@@ -157,7 +185,6 @@ useEffect(() => {
       device_ip: "192.168.68.52",
       synthetic: false,
       paired_with: null
-
     };
 
     setRecords((prev) =>
@@ -358,10 +385,12 @@ useEffect(() => {
                   <div>
                     <h5>Records List</h5>
                     <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.9)", marginTop: "4px" }}>
-                      Showing {displayedRecords.length} of {records.length} loaded records
+                      {searchQuery 
+                        ? `Found ${totalCount} matching record${totalCount !== 1 ? 's' : ''}`
+                        : `Showing ${displayedRecords.length} of ${totalCount} total records`
+                      }
                     </p>
                   </div>
-                
                 </div>
 
                 <div className="card-header flex-between" style={{ paddingTop: 0 }}>
@@ -369,7 +398,7 @@ useEffect(() => {
                     <div className="search-container">
                       <input
                         type="text"
-                        placeholder="Search by ID, User ID, Device IP, or Check Type..."
+                        placeholder="Search entire database by ID, User ID, Device IP, or Check Type..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
@@ -460,8 +489,13 @@ useEffect(() => {
                       ))}
                     </tbody>
                   </table>
-                  {displayedRecords.length === 0 && (
-                    <div className="no-records">No records found</div>
+                  {displayedRecords.length === 0 && !isLoading && (
+                    <div className="no-records">
+                      {searchQuery ? 'No matching records found' : 'No records found'}
+                    </div>
+                  )}
+                  {isLoading && (
+                    <div className="no-records">Searching...</div>
                   )}
                 </div>
 
@@ -485,6 +519,18 @@ useEffect(() => {
                 {!searchQuery && !hasMore && records.length > 0 && (
                   <div style={{ padding: "16px", textAlign: "center", borderTop: "1px solid #e5e7eb", color: "#718096", fontSize: "14px" }}>
                     All records loaded
+                  </div>
+                )}
+
+                {searchQuery && (
+                  <div style={{ padding: "16px", textAlign: "center", borderTop: "1px solid #e5e7eb" }}>
+                    <button
+                      className="btn-primary"
+                      onClick={() => setSearchQuery("")}
+                      style={{ minWidth: "200px" }}
+                    >
+                      Clear Search & Show All
+                    </button>
                   </div>
                 )}
               </div>
