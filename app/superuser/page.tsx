@@ -571,7 +571,11 @@ export default function SyntheticRecordsPage() {
                           </td>
                           <td>{record.id}</td>
                           <td>{record.user_id ?? '-'}</td>
-                          <td>{record.timestamp ? new Date(record.timestamp).toLocaleString() : '-'}</td>
+                          <td>
+                            {record.timestamp 
+                              ? new Date(record.timestamp).toLocaleString('en-US', { timeZone: 'UTC' })
+                              : '-'}
+                          </td>
                           <td>{record.device_ip ?? '-'}</td>
                           <td>{record.check_type ?? '-'}</td>
                           <td>
